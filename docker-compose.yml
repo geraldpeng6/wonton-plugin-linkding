@@ -37,6 +37,46 @@ services:
       start_period: 60s
       start_interval: 2s
 
+  # 一次性服务：等主服务健康后把预建管理员的 email 字段补成主人邮箱。
+  # 上游 create_initial_superuser 只设 username；mozilla-django-oidc 按 User.email 匹配用户，
+  # email 空时登录走 create_user 撞 username 的 UNIQUE 约束（500）。幂等：email 已对就跳过。
+  fix-email:
+    image: *linkding
+    entrypoint: ["/bin/sh", "/fix/fix-superuser-email.sh"]
+    # 镜像自带的 HEALTHCHECK 会 curl 应用（这个容器里没跑 uwsgi，永远失败）。
+    healthcheck:
+      test: ["NONE"]
+    environment:
+      LD_SUPERUSER_NAME: ${WONTON_OWNER_EMAIL:?核心没有注入主人邮箱，先在云吞里配好}
+      WONTON_OWNER_EMAIL: ${WONTON_OWNER_EMAIL}
+    volumes:
+      - ${WONTON_APP_DATA}/data:/etc/linkding/data
+    configs:
+      - source: fix_email
+        target: /fix/fix-superuser-email.sh
+    depends_on:
+      linkding:
+        condition: service_healthy
+    restart: "no"
+
+  # 让核心把 fix-email 当一次性服务（有人等它完成）。
+  ready:
+    image: *linkding
+    entrypoint: ["/bin/sh", "-c", "while :; do sleep 3600; done"]
+    depends_on:
+      fix-email:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+configs:
+  fix_email:
+    file: fix-superuser-email.sh
+
 x-wonton:
   spec: "0.4"
   id: app.linkding.linkding
