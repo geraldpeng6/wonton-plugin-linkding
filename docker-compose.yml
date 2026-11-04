@@ -95,15 +95,17 @@ x-wonton:
     zh: |
       把网页存进自己的书签库：自动抓标题、描述和图标，打标签、加备注，之后全文搜索。
 
-      用云吞的账号登录：第一次打开点一下“云吞”按钮，之后就自动进。书签数据存在家里服务器上。
+      用云吞的账号登录：打开就直接进书签页。书签数据存在家里服务器上。
     en: |
       Save web pages into your own bookmark library: titles, descriptions and favicons are fetched automatically. Tag them, add notes and search everything later.
 
-      Sign in with your Wonton account: tap the button once on first open, and afterwards you get right in. Bookmarks stay on your server at home.
+      Sign in with your Wonton account: opening the page takes you straight to your bookmarks. Bookmarks stay on your server at home.
   release_notes: { zh: 第一版。, en: First release. }
   webui:
     service: linkding
     port: 9090
+    # 打开就发起 OIDC 登录，落进书签页，不用多点一下“云吞”按钮。
+    path: /oidc/authenticate/
     # OIDC：linkding 官方支持 mozilla-django-oidc（LD_ENABLE_OIDC），回调是上游写死的 /oidc/callback/。
     sso: oidc
     oidc:

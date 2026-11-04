@@ -5,7 +5,7 @@
 插件的网页在 App 里作为小程序打开。
 
 这个仓库是 [Linkding](https://linkding.link) 插件：收藏网页书签，自动抓标题、描述和图标，全文搜索。登录交给云吞的
-身份提供方（`sso: oidc`，上游的 mozilla-django-oidc），第一次打开在登录页点一下“云吞”按钮，之后自动进；抓书签信息
+身份提供方（`sso: oidc`，上游的 mozilla-django-oidc），网页入口直接发起登录，打开就进书签页；抓书签信息
 需要出网权限。
 
 上游按邮箱认用户（`OIDC_USERNAME_CLAIM` 默认 `email`，不覆盖）：云吞里要先配好邮箱，否则装不上——compose 用
