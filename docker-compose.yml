@@ -21,8 +21,10 @@ services:
       # 上游按邮箱认用户（OIDC_USERNAME_CLAIM 默认 email，不覆盖）：scope 保持上游默认，
       # 少了 email 每次登录都会尝试建新号。用户名也用邮箱（上游限制）；邮箱在核心里配。
       OIDC_RP_SCOPES: "openid email profile"
-      # 登录页还有本地登录按钮：网关挡在前面，外人到不了；保留上游默认。
-      # CSRF：网页地址和 Host 一致（网关保留原始 Host），登记插件地址兜底。
+      # 主人的管理员账号：bootstrap 在迁移后建号。上游 OIDC 按邮箱匹配用户，用户名也要是邮箱
+      # 才能对上（OIDC_USERNAME_CLAIM 默认 email）；不设 LD_SUPERUSER_PASSWORD，密码不可用，
+      # 只能经 OIDC 进入。装好首次 OIDC 登录就是管理员。
+      LD_SUPERUSER_NAME: ${WONTON_OWNER_EMAIL:?核心没有注入主人邮箱，先在云吞里配好}
       LD_CSRF_TRUSTED_ORIGINS: ${WONTON_APP_URL}
       TZ: ${TZ}
     volumes:
@@ -71,6 +73,8 @@ x-wonton:
   permissions:
     # 抓书签的标题、描述和 favicon 要出网。
     - network.egress
+    # 知道邮箱：管理员账号按它预建（LD_SUPERUSER_NAME），上游按邮箱认用户。
+    - owner.identity
   # 上游没写最低内存；取 512M（Django + 后台任务进程）。镜像发布 amd64 和 arm64（docker manifest inspect）。
   requirements:
     arch: [amd64, arm64]

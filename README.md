@@ -8,8 +8,9 @@
 身份提供方（`sso: oidc`，上游的 mozilla-django-oidc），第一次打开在登录页点一下“云吞”按钮，之后自动进；抓书签信息
 需要出网权限。
 
-上游按邮箱认用户：云吞里要先配好邮箱，否则登录不进（这是上游限制，见 PR 说明）。首次 OIDC 登录建出的是普通账号；
-linkding 没有按用户组授管理员的选项，管理员提权目前是上游缺口，同样写在 PR 里。
+上游按邮箱认用户（`OIDC_USERNAME_CLAIM` 默认 `email`，不覆盖）：云吞里要先配好邮箱，否则装不上——compose 用
+`${WONTON_OWNER_EMAIL:?}` 在安装时就挡下来。管理员账号由 compose 写进上游自带的 `LD_SUPERUSER_NAME`（bootstrap
+启动时建好，无密码，只能经 OIDC 进入）；首次 OIDC 登录按邮箱对上这个号，打开就是管理员。
 
 ## 图标来源与授权
 
