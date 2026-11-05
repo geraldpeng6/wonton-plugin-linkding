@@ -1,21 +1,21 @@
-# 云吞插件模板
+# Linkding 书签插件
 
 云吞（Wonton）的插件就是一个 `docker-compose.yml`，顶层多一个 `x-wonton` 字段，写明插件在云吞里的身份、网页入口和要的
-权限。一个插件一个 Git 仓库，仓库根目录就是插件包，发布就是打 tag。主人在 App 里装上插件，核心按清单起容器、接好登录，
+权限。一个插件一个 Git 仓库，仓库根目录就是插件包，发布就是打 tag。用户在 App 里装上插件，核心按清单起容器、接好登录，
 插件的网页在 App 里作为小程序打开。
 
-这个仓库是模板：一个能装上的示例插件（nginx 显示一个向主人问好的网页），加上检查、开发环境和发布三个脚本。从这个模板
-新建仓库，照着下面把示例换成你的应用。
+这个仓库是 [Linkding](https://linkding.link) 插件：收藏网页书签，自动抓标题、描述和图标，全文搜索。登录交给云吞的
+身份提供方（`sso: oidc`，上游的 mozilla-django-oidc），网页入口直接发起登录，打开就进书签页；抓书签信息
+需要出网权限。
 
-## 准备
+上游按邮箱认用户（`OIDC_USERNAME_CLAIM` 默认 `email`，不覆盖）：云吞里要先配好邮箱，否则装不上——compose 用
+`${WONTON_OWNER_EMAIL:?}` 在安装时就挡下来。管理员账号由 compose 写进上游自带的 `LD_SUPERUSER_NAME`（bootstrap
+启动时建好，无密码，只能经 OIDC 进入）；首次 OIDC 登录按邮箱对上这个号，打开就是管理员。
 
-- Docker Engine 28 或更新的版本，带 Compose 插件（`docker compose`）。Linux 上的 Docker Engine、macOS 上的 Docker Desktop 和
-  OrbStack 都行。
-- `git`、`curl`（7.76 或更新）、`python3`。
-- Docker 要在本机：开发环境的数据目录是这个仓库下的路径，网页也开在本机的端口上。在远程主机上开发见后面的
-  “在远程主机上开发”。
+## 图标来源与授权
 
-不用装云吞，也不要 root：脚本用发布的核心镜像（`ghcr.io/geraldpeng6/wonton-core`）检查插件、起开发环境。
+`icon.png` 使用 Linkding 官方标志（上游仓库 `assets/logo.png`），未用图片模型生成；来源、版权、处理方式、上游 MIT 全文和商标说明见 [NOTICE](NOTICE)。
+Linkding 名称和标志是 Linkding 项目及其权利人的商标；本插件是独立维护的云吞插件包，不代表上游官方出品、合作或背书。
 
 ## 先跑起来
 
@@ -27,28 +27,32 @@ scripts/dev.sh up
 scripts/dev.sh install
 ```
 
-`up` 在本机起一套云吞，打印它的地址。示例（实例名取自目录名加 4 位随机数，端口随机）是
-`http://template3f2a.wonton.localhost:21234/`。浏览器打开，用 `scripts/dev.sh token` 输出的主人令牌登录。`install` 先列出
-插件要的权限，确认后装上，打印插件网页的地址。
+`up` 在本机起一套云吞，打印它的地址（实例名取自目录名加 4 位随机数，端口随机），形如
+`http://linkding3f2a.wonton.localhost:21234/`。浏览器打开，用 `scripts/dev.sh token` 输出的主人令牌登录。`install` 先列出
+插件要的权限，确认后装上，打印插件网页的地址。Chrome、Firefox 和 curl 把 `*.localhost` 直接解析到本机，不用改 hosts。
 
-示例网页经 `sso: proxy` 拿到用户名，打开就是“你好，<用户名>”。换成真实应用时，把示例的 `description`、`about`、`tags`
-换成你的，`web/`、compose 里的两个 `configs` 和 `sso: proxy` 及其 `proxy` 删掉（默认让应用自己登录），`webui.service`、
-`port` 换成你的，按下面的规则重写。Chrome、Firefox 和 curl 把 `*.localhost` 直接解析到本机，不用改 hosts。
+## 准备
+
+- Docker Engine 28 或更新的版本，带 Compose 插件（`docker compose`）。Linux 上的 Docker Engine、macOS 上的 Docker Desktop 和
+  OrbStack 都行。
+- `git`、`curl`（7.76 或更新）、`python3`。
+- Docker 要在本机：开发环境的数据目录是这个仓库下的路径，网页也开在本机的端口上。在远程主机上开发见后面的
+  “在远程主机上开发”。
 
 ## 仓库里有什么
 
 | 路径 | 内容 |
 | --- | --- |
 | `docker-compose.yml` | 插件本身：compose 加上 `x-wonton` 清单 |
-| `icon.svg`、`web/` | 清单和 compose 引用的文件：图标、交给容器的配置和网页 |
+| `icon.png` | 清单引用的图标 |
 | `screenshots/` | 商店详情页里的截图 |
 | `scripts/check.sh` | 检查插件包，规则和安装时一样 |
 | `scripts/dev.sh` | 开发环境：起一套云吞，装、重装、卸载插件，看日志 |
 | `scripts/smoke-probes.sh` | `scripts/dev.sh smoke` 对这个插件逐项的探测 |
-| `scripts/publish.sh` | 发布一个版本：打 tag、推送；`images/` 里有自己构建的镜像时先构建、推送并按摘要写回（示例没有） |
+| `scripts/publish.sh` | 发布一个版本：打 tag、推送；`images/` 里有自己构建的镜像时先构建、推送并按摘要写回（本插件没有，直接用上游镜像） |
 | `AGENTS.md` | 给人和 AI 编程代理的规则 |
-| `LICENSE` | 插件包自己的许可证；从模板新建时换成作者自己的名字和年份 |
-| `NOTICE` | 图标等第三方素材的许可和声明；图标是自己画的就写原创和插件许可证，见第 10 步 |
+| `LICENSE` | 插件包自己的许可证 |
+| `NOTICE` | 图标等第三方素材的许可和声明 |
 | `.wonton/` | 开发环境的设置、密钥和数据，不提交 |
 
 插件包是 `docker-compose.yml` 加上它引用的文件：`icon`、`settings`、`bot.avatar`、`notices` 和顶层 `configs` 的 `file`。README、
@@ -336,15 +340,10 @@ x-wonton:
 | `about` | 详细介绍，多语言纯文本，空行分段，每种语言不超过 4000 个字符 |
 | `release_notes` | 这个版本的更新说明，多语言纯文本，每种语言不超过 2000 个字符，升级提示里显示；数据迁移不可逆时要写明 |
 
-官方商店要求有 `icon`、`category`、`license`、`author` 和 `notices`。
+官方商店要求有 `icon`、`license`、`author` 和 `notices`。
 
-`NOTICE` 跟着插件包保存和分发，核心重新编码图标时也不留元数据，所以图标的许可只能写在这里：
-
-- 用上游标志：写清标志的来源（固定到提交的链接）、上游 LICENSE 里的版权行、做过什么处理（缩放、加底色）、上游许可证
-  全文，以及“名称和标志归对方所有，不表示合作或背书，软件许可证不授予商标权”。版权行照抄上游 LICENSE，查不到就写明。
-- 自己画或模型生成的图标：写一句图标是本仓库原创（或由图片模型生成），附上本仓库的许可证。
-
-README 的图标一节只留一句来源和商标说明，指向 `NOTICE`，不要把许可全文抄两遍。
+`NOTICE` 跟着插件包保存和分发，核心重新编码图标时也不留元数据，所以图标的许可只能写在这里。本插件用上游官方标志
+（`assets/logo.png`），NOTICE 里写来源、版权行、处理方式和商标说明，README 图标一节只留一句来源和商标说明指向它。
 
 ### 11. Agent、Bot、模型和工具
 
