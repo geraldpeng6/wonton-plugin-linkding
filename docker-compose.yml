@@ -2,11 +2,10 @@
 # 上游 MIT，镜像按清单列表（index）的摘要固定。
 name: linkding
 
-x-linkding: &linkding sissbruecker/linkding:1.47.0@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522
 
 services:
   linkding:
-    image: *linkding
+    image: sissbruecker/linkding:1.47.0@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522
     # bootstrap.sh 以 root 建 data、跑迁移后启动 uwsgi（uwsgi.ini 固定 uid/gid www-data）。
     # 不写 user：核心按“没写 user”把数据目录交给 PUID:PGID，容器内 bootstrap 再 chown 给 www-data。
     environment:
@@ -41,7 +40,7 @@ services:
   # 上游 create_initial_superuser 只设 username；mozilla-django-oidc 按 User.email 匹配用户，
   # email 空时登录走 create_user 撞 username 的 UNIQUE 约束（500）。幂等：email 已对就跳过。
   fix-email:
-    image: *linkding
+    image: sissbruecker/linkding:1.47.0@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522
     entrypoint: ["/bin/sh", "/fix/fix-superuser-email.sh"]
     # 镜像自带的 HEALTHCHECK 会 curl 应用（这个容器里没跑 uwsgi，永远失败）。
     healthcheck:
@@ -61,7 +60,7 @@ services:
 
   # 让核心把 fix-email 当一次性服务（有人等它完成）。
   ready:
-    image: *linkding
+    image: sissbruecker/linkding:1.47.0@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522
     entrypoint: ["/bin/sh", "-c", "while :; do sleep 3600; done"]
     depends_on:
       fix-email:
