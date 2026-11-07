@@ -17,17 +17,22 @@ services:
       OIDC_OP_JWKS_ENDPOINT: ${WONTON_OIDC_ISSUER}/.well-known/jwks.json
       OIDC_RP_CLIENT_ID: ${WONTON_OIDC_CLIENT_ID}
       OIDC_RP_CLIENT_SECRET: ${WONTON_OIDC_CLIENT_SECRET}
-      # 上游按邮箱认用户（OIDC_USERNAME_CLAIM 默认 email，不覆盖）：scope 保持上游默认，
-      # 少了 email 每次登录都会尝试建新号。用户名也用邮箱（上游限制）；邮箱在核心里配。
+      # 上游默认按邮箱认人，挂上的 custom.py 换成按 sub 认（见 oidc-backend.py）。
+      # verify_claims 要求有 email 声明，scope 保持上游默认；邮箱只当资料，登录时同步。
       OIDC_RP_SCOPES: "openid email profile"
-      # 主人的管理员账号：bootstrap 在迁移后建号。上游 OIDC 按邮箱匹配用户，用户名也要是邮箱
-      # 才能对上（OIDC_USERNAME_CLAIM 默认 email）；不设 LD_SUPERUSER_PASSWORD，密码不可用，
-      # 只能经 OIDC 进入。装好首次 OIDC 登录就是管理员。
-      LD_SUPERUSER_NAME: ${WONTON_OWNER_EMAIL:?核心没有注入主人邮箱，先在云吞里配好}
+      # 主人的管理员账号由 owner-account 服务建（username 是 OIDC 的 sub，云吞的账号名，装好后不变），
+      # 不用 LD_SUPERUSER_NAME：bootstrap 里它先于 owner-account 跑，升级时会把旧账号顶掉留下两个号。
+      # 不设 LD_SUPERUSER_PASSWORD，密码不可用，只能经 OIDC 进入。装好首次 OIDC 登录就是管理员。
       LD_CSRF_TRUSTED_ORIGINS: ${WONTON_APP_URL}
       TZ: ${TZ}
     volumes:
       - ${WONTON_APP_DATA}/data:/etc/linkding/data
+    # 生产设置末尾 `from .custom import *`，上游留了这个挂载点；匹配逻辑单独一个模块，认人时才导入。
+    configs:
+      - source: custom_settings
+        target: /etc/linkding/bookmarks/settings/custom.py
+      - source: oidc_backend
+        target: /etc/linkding/bookmarks/oidc_backend.py
     # 健康检查：curl 在镜像里有（上游 HEALTHCHECK 同款）；/health 检查数据库。
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://127.0.0.1:9090/health"]
@@ -36,34 +41,34 @@ services:
       start_period: 60s
       start_interval: 2s
 
-  # 一次性服务：等主服务健康后把预建管理员的 email 字段补成主人邮箱。
-  # 上游 create_initial_superuser 只设 username；mozilla-django-oidc 按 User.email 匹配用户，
-  # email 空时登录走 create_user 撞 username 的 UNIQUE 约束（500）。幂等：email 已对就跳过。
-  fix-email:
+  # 一次性服务：等主服务健康后把主人账号的 username 弄成 sub、email 同步成新值。
+  # 旧版本的账号 username 是当时的邮箱，改名后原有账号和书签都还在。
+  # 幂等，每次启动都跑。
+  owner-account:
     image: sissbruecker/linkding:1.47.0@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522
-    entrypoint: ["/bin/sh", "/fix/fix-superuser-email.sh"]
+    entrypoint: ["/bin/sh", "/fix/fix-owner-account.sh"]
     # 镜像自带的 HEALTHCHECK 会 curl 应用（这个容器里没跑 uwsgi，永远失败）。
     healthcheck:
       test: ["NONE"]
     environment:
-      LD_SUPERUSER_NAME: ${WONTON_OWNER_EMAIL:?核心没有注入主人邮箱，先在云吞里配好}
-      WONTON_OWNER_EMAIL: ${WONTON_OWNER_EMAIL}
+      WONTON_OWNER_NAME: ${WONTON_OWNER_NAME:?核心没有注入主人用户名，先在云吞里配好}
+      WONTON_OWNER_EMAIL: ${WONTON_OWNER_EMAIL:?核心没有注入主人邮箱，先在云吞里配好}
     volumes:
       - ${WONTON_APP_DATA}/data:/etc/linkding/data
     configs:
-      - source: fix_email
-        target: /fix/fix-superuser-email.sh
+      - source: fix_owner_account
+        target: /fix/fix-owner-account.sh
     depends_on:
       linkding:
         condition: service_healthy
     restart: "no"
 
-  # 让核心把 fix-email 当一次性服务（有人等它完成）。
+  # 让核心把 owner-account 当一次性服务（有人等它完成）。
   ready:
     image: sissbruecker/linkding:1.47.0@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522
     entrypoint: ["/bin/sh", "-c", "while :; do sleep 3600; done"]
     depends_on:
-      fix-email:
+      owner-account:
         condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
@@ -73,13 +78,17 @@ services:
       retries: 3
 
 configs:
-  fix_email:
-    file: fix-superuser-email.sh
+  custom_settings:
+    file: custom.py
+  oidc_backend:
+    file: oidc-backend.py
+  fix_owner_account:
+    file: fix-owner-account.sh
 
 x-wonton:
   spec: "0.4"
   id: app.linkding.linkding
-  version: 0.1.0
+  version: 0.2.0
   kind: app
   title: { en: Linkding }
   description: { zh: 收藏网页书签，自动抓标题和图标，全文搜索, en: "Save bookmarks with automatic titles, favicons and full-text search" }
@@ -99,7 +108,9 @@ x-wonton:
       Save web pages into your own bookmark library: titles, descriptions and favicons are fetched automatically. Tag them, add notes and search everything later.
 
       Sign in with your Wonton account: opening the page takes you straight to your bookmarks. Bookmarks stay on your server at home.
-  release_notes: { zh: 第一版。, en: First release. }
+  release_notes:
+    zh: 邮箱改了还能进原来的管理员账号：登录改按 OIDC 的 sub 认人，邮箱只当资料，每次登录同步。
+    en: "Changing your email no longer locks you out: sign-in now matches the OIDC sub, and the email is only kept as data and synced on each login."
   webui:
     service: linkding
     port: 9090
@@ -114,7 +125,7 @@ x-wonton:
   permissions:
     # 抓书签的标题、描述和 favicon 要出网。
     - network.egress
-    # 知道邮箱：管理员账号按它预建（LD_SUPERUSER_NAME），上游按邮箱认用户。
+    # 知道用户名和邮箱：管理员账号按用户名（OIDC 的 sub）预建，邮箱同步过去。
     - owner.identity
   # 上游没写最低内存；取 512M（Django + 后台任务进程）。镜像发布 amd64 和 arm64（docker manifest inspect）。
   requirements:
