@@ -5,20 +5,14 @@ web_assert() { grep -qi 'linkding'; }   # 标准输入：登录页或书签页�
 
 # 走完一次 OIDC：/oidc/authenticate/ 跳到 Hydra，核心会话自动确认，回调建应用会话。
 # web_login 只走到应用根路径，linkding 根路径不发起 OIDC，所以每个要会话的探针都自己登一次。
-# 安装刚完成时 uwsgi 首个 OIDC 往返可能 502：失败等 10 秒重试，共三次。
 oidc_login() {
-  local final try
+  local final
   # 先打一下应用根路径，网关才发插件域的会话 Cookie（web_login 也做了这一步）。
   curl -sS --noproxy '*' --max-time 60 -o /dev/null -L -H 'Accept: text/html' \
     -b "$SMOKE_JAR" -c "$SMOKE_JAR" "$SMOKE_WEB_URL/" || { echo "打不开应用根路径"; return 1; }
-  for try in 1 2 3; do
-    final="$(curl -sS --noproxy '*' --max-time 120 -o /dev/null -w '%{url_effective}' -L --max-redirs 30 \
-      -b "$SMOKE_JAR" -c "$SMOKE_JAR" "$SMOKE_WEB_URL/oidc/authenticate/")" || final=""
-    grep -q '/bookmarks' <<<"$final" && return 0
-    (( try < 3 )) && sleep 10
-  done
-  echo "登录链没有落到应用：${final:-（空）}"
-  return 1
+  final="$(curl -sS --noproxy '*' --max-time 120 -o /dev/null -w '%{url_effective}' -L --max-redirs 30 \
+    -b "$SMOKE_JAR" -c "$SMOKE_JAR" "$SMOKE_WEB_URL/oidc/authenticate/")" || final=""
+  grep -q '/bookmarks' <<<"$final" || { echo "登录链没有落到应用：${final:-（空）}"; return 1; }
 }
 
 # 会话里的 /bookmarks 有 Admin 链接（只有超管有），Django admin 的用户列表里有这个账号。

@@ -2,8 +2,8 @@
 # 保证主人账号能对上 OIDC 的 sub：username 就是 sub（云吞的账号名，装好后不变），email 当资料同步成新值。
 #
 # 上游 mozilla-django-oidc 按 email 匹配已有账号，改邮箱后找不到人；插件换成按 sub 匹配
-# （oidc-backend.py）。旧版本按邮箱建号，这里把预建的管理员改名过来，账号和书签都不丢。
-# 幂等，每次启动都跑。不设密码，只能经 OIDC 进来。
+# （oidc-backend.py）。旧版本按邮箱建号，这里按 sub、旧邮箱（username=email）、email 找那个号改名，
+# 都找不到才新建；别的本地超管不动。幂等，每次启动都跑。不设密码，只能经 OIDC 进来。
 #
 # /health 只查数据库连接，bootstrap 的 migrate 可能还没跑完：等 auth_user 表出现（最多 5 分钟）再动手。
 set -e
@@ -26,10 +26,10 @@ User = get_user_model()
 sub, email = "$SUB", "$EMAIL"
 user = User.objects.filter(username=sub).first()
 if user is None:
-    # 旧版本的账号 username 是当时的邮箱；邮箱后来又改过时按 email 找不到，退到最早的管理员。
+    # 旧版本的账号 username 是当时的邮箱；邮箱后来又改过时按 email 字段找。
     user = (
-        User.objects.filter(email=email).order_by("pk").first()
-        or User.objects.filter(is_superuser=True).order_by("pk").first()
+        User.objects.filter(username__iexact=email).first()
+        or User.objects.filter(email=email).first()
     )
     if user is None:
         user = User(username=sub)
