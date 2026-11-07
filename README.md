@@ -6,9 +6,9 @@
 身份提供方（`sso: oidc`，上游的 mozilla-django-oidc），网页入口直接发起登录，打开就进书签页；抓书签信息
 需要出网权限。
 
-上游按邮箱认用户（`OIDC_USERNAME_CLAIM` 默认 `email`，不覆盖）：云吞里要先配好邮箱，否则装不上——compose 用
-`${WONTON_OWNER_EMAIL:?}` 在安装时就挡下来。管理员账号由 compose 写进上游自带的 `LD_SUPERUSER_NAME`（bootstrap
-启动时建好，无密码，只能经 OIDC 进入）；首次 OIDC 登录按邮箱对上这个号，打开就是管理员。
+登录身份按 OIDC 的 `sub` 认（云吞的账号名，装好后不变），邮箱只当资料，每次登录同步成新值：改邮箱不会
+锁在外面，也不会多出一个号。上游默认按邮箱认人，插件挂一个 `custom.py` 换掉它的匹配逻辑；管理员账号由
+compose 里的一次性服务按 `sub` 预建（无密码，只能经 OIDC 进入），首次登录就是管理员。
 
 ## 图标来源与授权
 
