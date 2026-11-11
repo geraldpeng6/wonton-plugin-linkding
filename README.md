@@ -1,6 +1,6 @@
 # Linkding 书签插件
 
-开发流程见[插件开发指南](https://github.com/geraldpeng6/wonton-docs/blob/main/develop.md)。
+开发流程见[插件开发指南](https://github.com/wontonapp/wonton-docs/blob/main/develop.md)。
 
 这个仓库是 [Linkding](https://linkding.link) 插件：收藏网页书签，自动抓标题、描述和图标，全文搜索。登录交给云吞的
 身份提供方（`sso: oidc`，上游的 mozilla-django-oidc），网页入口直接发起登录，打开就进书签页；抓书签信息
