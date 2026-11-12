@@ -90,8 +90,8 @@ x-wonton:
   id: app.linkding.linkding
   version: 0.2.0
   kind: app
-  title: { en: Linkding }
-  description: { zh: 收藏网页书签，自动抓标题和图标，全文搜索, en: "Save bookmarks with automatic titles, favicons and full-text search" }
+  title: { zh: 网页书签（Linkding）, en: Web Bookmarks (Linkding) }
+  description: { zh: 像浏览器书签，但存在家里、手机电脑通用：存个网址，标题和图标自动带上，以后一搜就有。只管网址，比智能收藏夹更简单。, en: "Like your browser's bookmarks, but kept on your home server and shared across devices: save a link, its title and icon come along, and search finds it later. Links only — simpler than Karakeep." }
   icon: icon.png
   notices: [NOTICE]
   screenshots: [screenshots/home.png]
